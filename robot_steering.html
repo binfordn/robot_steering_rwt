@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+
+<script type="text/javascript" src="libs/roslib.js"></script>
+
+<h1>Robot Steering</h1>
+
+<!-- orient="vertical" only works in Firefox -->
+<div id="xy_slider_container">
+    <input type="range" orient="vertical" min="-1" max="1" step="0.01" value="0" class="slider" id="xy_slider">
+</div>
+<div id="xy_value"></div>
+<button onclick="stopButtonXY()">0</button>
+
+<!-- Slider should go from 3 on right to -3 on left, need CSS -->
+<div id="z_slider_container">
+    <input type="range" min="-3" max="3" step="0.01" value="0" class="slider" id="z_slider">
+</div>
+<div id="z_value"></div>
+<button onclick="stopButtonZ()">0</button>
+
+<script type="text/javascript" type="text/javascript">
+
+    // Set the topic name
+    var topic_name = '/turtle1/cmd_vel'
+
+    // Set ROS port number
+    var ros_url = 'ws://localhost:9090'
+    // Connect to ROS
+    var ros = new ROSLIB.Ros({
+        url : ros_url
+    });
+
+    // Create publisher
+    var cmdVel = new ROSLIB.Topic({
+        ros : ros,
+        name : topic_name,
+        messageType : 'geometry_msgs/Twist'
+    });
+
+    // Get variables for sliders and their values
+    var xy_slider = document.getElementById("xy_slider");
+    var xy_value = document.getElementById("xy_value");
+    var z_slider = document.getElementById("z_slider");
+    var z_value = document.getElementById("z_value");
+
+    // Variables for linear and angular velocity, used in multiple places
+    var lin_vel;
+    var ang_vel;
+
+    // Show default slider values from beginning
+    xy_value.innerHTML = xy_slider.value;
+    z_value.innerHTML = z_slider.value;
+
+    // Like a mutex, so doesn't create multiple timers
+    var lock = 0;
+    // The timer variable (interval ID)
+    var timer_var;
+
+    // The function that gets repeated (publish message)
+    function timerFunction() 
+    {
+        // Read slider values for publishing message
+        lin_vel = Number(xy_slider.value);
+        ang_vel = Number(z_slider.value);
+
+        var twist = new ROSLIB.Message({
+            linear : {
+                x : lin_vel,
+                y : 0.0,
+                z : 0.0
+            },
+            angular : {
+                x : 0.0,
+                y : 0.0,
+                z : ang_vel
+            }
+        });
+        cmdVel.publish(twist);
+    }
+
+    // Starts the timer function
+    function startTimer()
+    {
+        if (lock == 0)
+        {
+            lock = 1;
+            timer_var = setInterval(timerFunction, 1000);
+        }
+    }
+
+    // Stops the timer function if both buttons are zero
+    function stopTimer()
+    {
+        if (lock == 1)
+        {
+            // Stop the timer
+            clearInterval(timer_var);
+
+            // Publish a 0 message
+            var twist = new ROSLIB.Message({
+                linear : {
+                    x : 0.0,
+                    y : 0.0,
+                    z : 0.0
+                },
+                angular : {
+                    x : 0.0,
+                    y : 0.0,
+                    z : 0.0
+                }
+            });
+            cmdVel.publish(twist);
+
+            lock = 0;
+        }
+    }
+
+    // xy slider moved function
+    xy_slider.oninput = function xy_slider_function()
+    {
+        // Read slider value for displaying value
+        lin_vel = Number(xy_slider.value);
+        xy_value.innerHTML = lin_vel;
+        startTimer();
+    }
+
+    // z slider moved function
+    z_slider.oninput = function z_slider_function()
+    {
+        // Read slider value for displaying value
+        ang_vel = Number(z_slider.value);
+        z_value.innerHTML = ang_vel;
+        startTimer();
+    }
+
+    // Reset the xy slider to 0
+    function stopButtonXY()
+    {
+        // Reset slider and displayed value to 0
+        xy_value.innerHTML = 0;
+        xy_slider.value = 0;
+        if (z_slider.value == 0)
+        {
+            stopTimer();
+        }
+    }
+
+    // Reset the z timer to 0
+    function stopButtonZ()
+    {
+        // Reset slider and displayed value to 0
+        z_value.innerHTML = 0;
+        z_slider.value = 0;
+        if (xy_slider.value == 0)
+        {
+            stopTimer();
+        }
+    }
+
+</script>
+</html>
